@@ -16,21 +16,45 @@ This file is part of the Embedded String I/O library
 
 #include "eprintf.h"
 
+#if TRACE
+#include "stdio.h"
+#endif
+
 //declare user-implemented output function
 void (*eUserputchar)(unsigned char);
 
 static char* outputPointer = (char*)0;
+
+static int sizeActual = 0;
+static int sizeLimit = 0;
+static int sizeLimitEnabled = 0; //default is 0
 
 void eputchar(int character)
 {
 	if (character == '\n' && CONVERT_CR_TO_CRLF_ENABLED)
 		eputchar('\r');
 
-	if (outputPointer == (char*)0)
+	if (outputPointer == (char*)0) //writes to user-defined output
 		eUserputchar((unsigned char) character);
-	//called by esprinf, writes to string
-	else
-		*outputPointer++ = (unsigned char)character;
+	else //writes to string buffer
+	{
+		if (sizeLimitEnabled)
+		{
+			if (sizeActual >= sizeLimit)
+			{
+				sizeActual; //do nothing
+				*outputPointer = '\0'; //end the string
+			}
+			else //not arrived at limit
+			{
+				sizeActual++;
+				*outputPointer++ = (unsigned char)character;
+			}
+		}
+		else //no size limit
+			*outputPointer++ = (unsigned char)character;
+	}
+
 }
 
 
@@ -276,7 +300,7 @@ void evprintf (const char*	formatStringPointer,
 		printf("formatStringPointer points to: %c\n", *formatStringPointer);
 		printf("trace: type, typeField = %c\n", typeField);
 #endif
-#if 1
+
 		switch (typeField)
 		{
 		//Print int as a signed binary numbe
@@ -389,7 +413,7 @@ void evprintf (const char*	formatStringPointer,
 			eprintf("'%c' is not supported", typeField);
 			continue;
 		}
-#endif
+
 		//end extracting format info
 
 		//step8. print numeral string
@@ -433,10 +457,6 @@ void evprintf (const char*	formatStringPointer,
 #endif
 		}
 
-#if TRACE
-		printf("trace: number = %d\n", number);
-#endif
-
 		i = 0;
 		do
 		{
@@ -454,11 +474,15 @@ void evprintf (const char*	formatStringPointer,
 			numeralString[i] = remainder + '0';
 			i++;
 
-		} while (number != 0 && i < sizeof(numeralString));
+		} while (number != 0 && i < (sizeof(numeralString) / sizeof(numeralString[0])));
 
 		stringLength = i;
 		if (numberSignFlag == NUMBER_SIGN_NEGATIVE)
 			stringLength += 1; //space for minus sign '-'
+
+#if TRACE
+		printf("trace: stringLength = %d\n", stringLength);
+#endif
 
 		//width can not be smaller than stringLength
 		widthField = widthField > stringLength ? widthField : stringLength;
@@ -511,20 +535,46 @@ void evprintf (const char*	formatStringPointer,
  * Print a formatted string to default I/O
  * @param formatStringPointer Pointer to the format string
  */
-void esrintf (char *buffer, const char *formatStringPointer, ... )
+void esprintf (char *buffer, const char *formatStringPointer, ... )
 {
 	va_list argumentsPointer;
 
+	va_start(argumentsPointer, formatStringPointer);
+	evsprintf(buffer, formatStringPointer, argumentsPointer);
+	va_end(argumentsPointer);
+
+}
+
+void evsprintf(char *buffer, const char *formatStringPointer,
+               va_list argumentsPointer)
+{
 	//re-direct output to buffer
 	outputPointer = buffer;
 
-	va_start(argumentsPointer, formatStringPointer);
 	evprintf(formatStringPointer, argumentsPointer);
-	va_end(argumentsPointer);
 
 	//end buffer with '\0'
-	*buffer = '\0';
+	*outputPointer = '\0';
 
 	//restore output
 	outputPointer = (char*)0;
+}
+
+void esnprintf(char* buffer, int size, const char* formatStringPointer, ... )
+{
+	va_list argumentsPointer;
+
+	//size limit enable
+	sizeActual = 0;
+	sizeLimit = size;
+	sizeLimitEnabled = 1;
+
+	va_start(argumentsPointer, formatStringPointer);
+	evsprintf(buffer, formatStringPointer, argumentsPointer);
+	va_end(argumentsPointer);
+
+	//size limit disable
+	sizeActual = 0;
+	sizeLimit = 0;
+	sizeLimitEnabled = 0;
 }
