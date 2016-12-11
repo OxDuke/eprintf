@@ -14,22 +14,25 @@ Writes a character to default I/O.
 Writes every character from the null-terminated string to default I/O.
 * `void eprintf(const char* formatStringPointer, ...)`
  Writes a formatted string to default I/O. For the syntax of  format placeholder, please refer to the comment at the start of the definition of this function in eprintf.c
+* `void esprintf(char *buffer, const char *formatStringPointer, ... )`
+Writes a formatted string to a string buffer. The behavior is undefined if the string to be written (plus the terminating null character) exceeds the size of the array pointed to by buffer.
+* `void esnprintf(char* buffer, int size, const char* formatStringPointer, ... )`
+Writes a formatted string to a string buffer. With the maxium number of characters written designated by parameter size.
 * `void evprintf(const char* formatStringPointer, va_list argumentsPointer)`
 Writes a formatted string to default I/O using variable argument list.
-* `void esprintf(char *buffer, const char *formatStringPointer, ... )`
-Writes a formatted string to a character string buffer. The behavior is undefined if the string to be written (plus the terminating null character) exceeds the size of the array pointed to by buffer.
+* `void evsprintf(char *buffer, const char *formatStringPointer, va_list argumentsPointer)`
+Writes a formatted string to a string buffer using variable argument list.
 
 #####Input APIs are:
 * `/* upcoming soon */`
 
 #####Others
 * `#define CONVERT_CR_TO_CRLF_ENABLED 1`
-Set this Macro to 1 when you want a '\n' printed as "\r\n". This Macro is set to 1 in default.
+Set this Macro to 1 when you want a '\n' printed as "\r\n". This Macro is set to 1 in default. However, for some implemetation of `putchar(int ch)` , compilers like GCC for example, the"\r\n" might be interpreted as "\n\n", then you may want to set this Macro to 0.
 * `/* upcoming soon */`
 
 ##Replanting
 User shall always remember to use the LINK_USER_OUTPUT() Macro to link the user-defined one-byte output function to the library. e.g.
-
 * `LINK_USER_OUTPUT(UART1_PrintOneByte);`
 * `LINK_USER_OUTPUT(LCD_PrintOneByte);`
 
@@ -37,15 +40,15 @@ User shall always remember to use the LINK_USER_OUTPUT() Macro to link the user-
 ##Examples
 
     //Examples for eprintf - The Embedded String I/O Library
-
+    
     #include "eprintf.h"
     #include "stdio.h"
-
+    
     int main(int argc, char const *argv[])
     {
 	    //link the putchar() function in stdio.h to our library
 	    LINK_USER_OUTPUT(putchar);
-
+    
 	    eprintf("1. Hello world\n");
 	    eprintf("2. %d\n", 123);
 	    eprintf("3. %6d,%3d%%\n", -75, 5);
@@ -59,10 +62,10 @@ User shall always remember to use the LINK_USER_OUTPUT() Macro to link the user-
 	    eprintf("b. %6s\n", "abc");
 	    eprintf("c. %c\n", 'a');
 	    eprintf("d. %f\n", 10.0);
-
+    
 	    return 0;
     }
-
+    
     //outputs are:
     1. Hello world
     2. 123
